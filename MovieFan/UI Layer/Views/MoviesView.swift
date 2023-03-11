@@ -7,8 +7,12 @@
 
 import SwiftUI
 import Charts
+import CoreData
+import Combine
 
 struct MoviesView: View {
+    
+    @Environment(\.managedObjectContext) var managedObjectContext: NSManagedObjectContext
     // This is a value that is made available to your views through the application itself - injected by .environmentObject(viewModel) in the app – it’s shared data that every view can read.
     // Because all views point to the same model, if one view changes the model all views immediately update.
     // As the same as property wrapper @ObservedObject, @EnvironmentObject lets Swift UI bind
@@ -18,13 +22,25 @@ struct MoviesView: View {
     // Note: we can still use he power of Combine itself by subscribing to any observable
     // object’s objectWillChange publisher directly — and then update our UI accordingly.
     @EnvironmentObject var viewModel: MoviesViewModel
+    
+    // Fetch from the local CoreData
+    @FetchRequest(sortDescriptors: []) var moviesCDList: FetchedResults<MovieCD>
 
     var body: some View {
         // Construct our UI based on the current @Publish properties of MoviesViewModel object
         TabView {
+            // List Tab
             List {
                 Section(header: Text("Popular Movies")) {
-                    ForEach(viewModel.movies) { movie in
+//                    ForEach(viewModel.movies) { movie in
+                    ForEach(moviesCDList) { movieCD in
+
+                        let movie = Movie(id: Int(movieCD.id),
+                                          title: movieCD.tile ?? "",
+                                          releaseDate: movieCD.releaseDate ?? "",
+                                          imageUrlSuffix: movieCD.imageUrlSuffix ?? "",
+                                          overview: movieCD.overview ?? "")
+                        
                         NavigationLink(destination:
                                         MovieDetailsView(movie: movie)) {
                             MovieCardView(movie: movie)
@@ -36,11 +52,25 @@ struct MoviesView: View {
                 // action performed before the first frame of the view appears
                 viewModel.getMovies()
             }
+            .onTapGesture {
+                if let movie = viewModel.movies.first {
+                    let movieCD = MovieCD(context: managedObjectContext)
+                    movieCD.id = Int64(movie.id)
+                    movieCD.title = movie.title
+                    movieCD.largeImageUrl = movie.getLargeImageUrl()
+                    movieCD.thumbnailImageUrl = movie.getThumbnailImageUrl()
+                    movieCD.overview = movie.overview
+                    movieCD.imageUrlSuffix = movie.imageUrlSuffix
+
+                    try? managedObjectContext.save()
+                }
+            }
             .tabItem {
                 Label("Movies",
                       systemImage: "popcorn.fill")
             }
             
+            // Chart Tab
             Chart {
                 ForEach(viewModel.movieRatings
                     .prefix(10)

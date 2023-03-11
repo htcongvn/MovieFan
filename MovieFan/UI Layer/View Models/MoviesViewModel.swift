@@ -46,8 +46,8 @@ class MoviesViewModel: ObservableObject { // To mark this class as being observa
     
     func getMovieRatings() {
         
-        apiService.getMovieRatingsStdApi { [weak self] result in
-//        apiService.getMovieRatings { [weak self] result in
+//        apiService.getMovieRatingsStdApi { [weak self] result in
+        apiService.getMovieRatings { [weak self] result in
             guard let self = self else { return }
             switch result {
             case .success(let movieRatings):
