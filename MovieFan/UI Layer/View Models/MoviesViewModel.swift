@@ -22,23 +22,17 @@ class MoviesViewModel: ObservableObject { // To mark this class as being observa
     @Published private(set) var error: DataError? = nil
     @Published private(set) var movieRatings: [MovieRating] = []
     
-    private var persistentController: MoviePersistentController // Core Data
-    private var moviesFetchRequest: NSFetchRequest<MovieCD>
+    private var persistentController: MoviePersistentController = MoviePersistentController() // Core Data
+    private var moviesFetchRequest: NSFetchRequest<MovieCD> = MovieCD.fetchRequest() // not have the data yet
     
-    private var networMonitor: NWPathMonitor
+    private var networMonitor: NWPathMonitor = NWPathMonitor()
     private let apiService: MovieAPILogic
     
 //    private var queue = DispatchQueue(label: "Monitor")
     
-    init(apiService: MovieAPILogic = MovieAPI(),
-         networMonitor: NWPathMonitor = NWPathMonitor(),
-         persistentController: MoviePersistentController = MoviePersistentController()) {
+    init(apiService: MovieAPILogic = MovieAPI()) {
         self.apiService = apiService
         
-        self.persistentController = persistentController
-        self.moviesFetchRequest = MovieCD.fetchRequest() // not have the data yet
-        
-        self.networMonitor = networMonitor
 //        self.networMonitor.start(queue: queue)
         self.networMonitor.start(queue: DispatchQueue.global(qos: .userInitiated)) // use system queue which is running background
         
@@ -63,8 +57,76 @@ class MoviesViewModel: ObservableObject { // To mark this class as being observa
                 case .success(let movies):
                     DispatchQueue.main.async {
                         self.movies = movies ?? []
-                    }
-                }
+                        
+                        // Prepare incoming serverside movies Id List and Dictionary
+                        var moviesIdDict: [Int: Movie] = [:]
+                        var moviesIdList: [Int] = []
+                        
+                        guard let movies = movies,
+                                !movies.isEmpty else {
+                            return
+                        }
+                        // movies are now not empty
+                        for movie in movies {
+                            moviesIdDict[movie.id] = movie
+                            // We can do as with .map() outside of the for loop
+                            // moviesIdList.append(movie.id)
+                        }
+                        moviesIdList = movies.map { $0.id }
+
+                        // Get all movies that match incoming server side movies ids
+                        // and find any existing movies in the local CoreData
+                        self.moviesFetchRequest.predicate = NSPredicate(
+                            format: "id IN %@", moviesIdList)
+                        
+                        // Make a fetch request using predicate
+                        let managedObjectContext = self.persistentController.persistentContainer.viewContext
+
+                        let moviesCDList = try? managedObjectContext.fetch(self.moviesFetchRequest)
+                        print("moviesCDList: \(String(describing: moviesCDList?.count))")
+                        
+                        guard let moviesCDList = moviesCDList else {
+                            return
+                        }
+                        
+                        var movieIdCDList: [Int] = []
+                        
+                        // Then update all matching movies to have the same data, i.e. syncing
+                        for movieCD in moviesCDList {
+                            movieIdCDList.append(Int(movieCD.id))
+                            
+                            if let movie = moviesIdDict[Int(movieCD.id)] {
+                                if (movie.overview != movieCD.overview) {
+                                    movieCD.setValue(movie.overview, forKey: "overview")
+                                }
+                                if (movie.title != movieCD.title) {
+                                    movieCD.setValue(movie.title, forKey: "title")
+                                }
+                                if (movie.imageUrlSuffix != movieCD.imageUrlSuffix) {
+                                    movieCD.setValue(movie.imageUrlSuffix, forKey: "imageUrlSuffix")
+                                }
+                                if (movie.releaseDate != movieCD.releaseDate) {
+                                    movieCD.setValue(movie.releaseDate, forKey: "releaseDate")
+                                }
+                            }
+                        }
+                        
+                        // And add new objects coming from the server side
+                        for movie in movies {
+                            if !movieIdCDList.contains(movie.id) {
+                                let movieCD = MovieCD(context: managedObjectContext) // create object in memory in the context
+                                movieCD.id = Int64(movie.id)
+                                movieCD.overview = movie.overview
+                                movieCD.title = movie.title
+                                movieCD.imageUrlSuffix = movie.imageUrlSuffix
+                                movieCD.releaseDate = movie.releaseDate
+                            }
+                        }
+                        
+                        // FInally save it
+                        try? managedObjectContext.save()
+                    } // main.async
+                } // switch
             }
         default: // not connected to the internet
             // fetch data from CoreData
