@@ -10,4 +10,5 @@ import Foundation
 // Define custom Data Error for the MovieAPI errors
 enum DataError: Error {
     case networkingError(String)
+    case coreDataError(String)
 }

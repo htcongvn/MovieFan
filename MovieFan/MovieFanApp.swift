@@ -9,7 +9,7 @@ import SwiftUI
 
 @main
 struct MovieFanApp: App {
-    @StateObject private var persistentController = MoviePersistentController()
+    
     
     let viewModel = MoviesViewModel()
     
@@ -18,10 +18,6 @@ struct MovieFanApp: App {
             NavigationView {
                 MoviesView()
                     .environmentObject(viewModel) // from network, which is the latest update
-                    // Allows to manage the data from CoreData live in memory for better performance
-                    // viewContext is inserted into MoviesView
-                    .environment(\.managedObjectContext,
-                                  persistentController.persistentContainer.viewContext) // from local, which is the copy of it
             }
         }
     }

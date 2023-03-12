@@ -8,6 +8,7 @@
 import Foundation
 import Combine
 import Network
+import CoreData
 
 // Use two tools - ObservableObject protocol and @Published property wrapper to define a MoviesViewModel
 // which notifies its observers whenever its underline operation of movies retrieval was performed and
@@ -21,15 +22,26 @@ class MoviesViewModel: ObservableObject { // To mark this class as being observa
     @Published private(set) var error: DataError? = nil
     @Published private(set) var movieRatings: [MovieRating] = []
     
+    private var persistentController: MoviePersistentController // Core Data
+    private var moviesFetchRequest: NSFetchRequest<MovieCD>
+    
     private var networMonitor: NWPathMonitor
     private let apiService: MovieAPILogic
     
-    private var queue = DispatchQueue(label: "Monitor")
+//    private var queue = DispatchQueue(label: "Monitor")
     
-    init(apiService: MovieAPILogic = MovieAPI(), networMonitor: NWPathMonitor = NWPathMonitor()) {
+    init(apiService: MovieAPILogic = MovieAPI(),
+         networMonitor: NWPathMonitor = NWPathMonitor(),
+         persistentController: MoviePersistentController = MoviePersistentController()) {
         self.apiService = apiService
+        
+        self.persistentController = persistentController
+        self.moviesFetchRequest = MovieCD.fetchRequest() // not have the data yet
+        
         self.networMonitor = networMonitor
-        self.networMonitor.start(queue: queue)
+//        self.networMonitor.start(queue: queue)
+        self.networMonitor.start(queue: DispatchQueue.global(qos: .userInitiated)) // use system queue which is running background
+        
     }
     
     func getMovies() {
@@ -49,11 +61,30 @@ class MoviesViewModel: ObservableObject { // To mark this class as being observa
                 case .failure(let error):
                     self.error = error
                 case .success(let movies):
-                    self.movies = movies ?? []
+                    DispatchQueue.main.async {
+                        self.movies = movies ?? []
+                    }
                 }
             }
         default: // not connected to the internet
-            break // do nothing here
+            // fetch data from CoreData
+            do {
+                let moviesCDList =
+                    try persistentController.persistentContainer.viewContext
+                        .fetch(moviesFetchRequest)
+                var convertedMovies: [Movie] = []
+                for movieCD in moviesCDList {
+                    let movie = Movie(id: Int(movieCD.id),
+                                      title: movieCD.title ?? "",
+                                      releaseDate: movieCD.releaseDate ?? "",
+                                      imageUrlSuffix: movieCD.imageUrlSuffix ?? "",
+                                      overview: movieCD.overview ?? "")
+                    convertedMovies.append(movie)
+                }
+                movies = convertedMovies
+            } catch {
+                self.error = .coreDataError("Could not retrieve movies from Core Data")
+            }
         }
     }
     
@@ -74,7 +105,8 @@ class MoviesViewModel: ObservableObject { // To mark this class as being observa
                 }
             }
         default: // not connected to the internet
-            break // do nothing here
+            // fetch data from CoreData
+            break
         }
     }
     

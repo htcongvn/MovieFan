@@ -12,7 +12,6 @@ import Combine
 
 struct MoviesView: View {
     
-    @Environment(\.managedObjectContext) var managedObjectContext: NSManagedObjectContext
     // This is a value that is made available to your views through the application itself - injected by .environmentObject(viewModel) in the app – it’s shared data that every view can read.
     // Because all views point to the same model, if one view changes the model all views immediately update.
     // As the same as property wrapper @ObservedObject, @EnvironmentObject lets Swift UI bind
@@ -23,8 +22,10 @@ struct MoviesView: View {
     // object’s objectWillChange publisher directly — and then update our UI accordingly.
     @EnvironmentObject var viewModel: MoviesViewModel
     
+    // We chose to shield fetch request from the UI and do that within the view model.
+    // But it is still available this way to retrieve the data from Core Data directly from UI
     // Fetch from the local CoreData
-    @FetchRequest(sortDescriptors: []) var moviesCDList: FetchedResults<MovieCD>
+    // @FetchRequest(sortDescriptors: []) var moviesCDList: FetchedResults<MovieCD>
 
     var body: some View {
         // Construct our UI based on the current @Publish properties of MoviesViewModel object
@@ -32,15 +33,7 @@ struct MoviesView: View {
             // List Tab
             List {
                 Section(header: Text("Popular Movies")) {
-//                    ForEach(viewModel.movies) { movieFromIO in
-                    ForEach(moviesCDList) { movieFromIO in
-
-                        let movie = Movie(id: Int(movieFromIO.id),
-                                          title: movieFromIO.title ?? "",
-                                          releaseDate: movieFromIO.releaseDate ?? "",
-                                          imageUrlSuffix: movieFromIO.imageUrlSuffix ?? "",
-                                          overview: movieFromIO.overview ?? "")
-
+                    ForEach(viewModel.movies) { movie in
                         NavigationLink(destination:
                                         MovieDetailsView(movie: movie)) {
                             MovieCardView(movie: movie)
