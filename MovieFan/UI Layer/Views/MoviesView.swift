@@ -78,17 +78,17 @@ struct MoviesView: View {
 //                    .sorted(by: { rating1, rating2 in
 //                    rating1.voteCount > rating2.voteCount})
                 ) { movie in
-                    LineMark(x: .value("Movies", movie.title),
-                            y: .value("Vote Count", movie.voteCount))
-                    .foregroundStyle(Color.red)
-                    .interpolationMethod(.catmullRom)
-
-                    PointMark(x: .value("Movies", movie.title),
-                            y: .value("Vote Count", movie.voteCount))
-                    .foregroundStyle(by: .value("Movies", movie.title))
-                    .symbol(by: .value("Movies", movie.title))
-                    .accessibilityLabel(movie.title)
-                    .accessibilityValue("\(movie.voteCount) votes")
+//                    LineMark(x: .value("Movies", movie.title),
+//                            y: .value("Vote Count", movie.voteCount))
+//                    .foregroundStyle(Color.red)
+//                    .interpolationMethod(.catmullRom)
+//
+//                    PointMark(x: .value("Movies", movie.title),
+//                            y: .value("Vote Count", movie.voteCount))
+//                    .foregroundStyle(by: .value("Movies", movie.title))
+//                    .symbol(by: .value("Movies", movie.title))
+//                    .accessibilityLabel(movie.title)
+//                    .accessibilityValue("\(movie.voteCount) votes")
                     
                     RectangleMark(x: .value("Movies", movie.title),
                                   y: .value("Vote Average", (500 * movie.voteAverage)),
@@ -119,7 +119,7 @@ struct MoviesView: View {
                     .foregroundStyle(by: .value("Movies", movie.title))
                     .opacity(0.5)
                     
-                }
+                } // ForEach
                 .foregroundStyle(.gray.opacity(0.8))
                 
                 RuleMark(y: .value("Average", (500 * viewModel.getMovieRatingsVoteAverage(for: 20))))

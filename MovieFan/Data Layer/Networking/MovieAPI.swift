@@ -78,6 +78,8 @@ class MovieAPI: MovieAPILogic {
     // implementation using Apple Standard APIs: URLSession and covennient APIs URLComponents, URLQueryItem and JSONDecoder
     func getMovieRatingsStdApi(completion: @escaping (MovieRatingAPIResponse)) {
         
+        URLCache.shared.removeAllCachedResponses()
+        
         var urlComponents = URLComponents()
         urlComponents.scheme = "https"
         urlComponents.host = "api.themoviedb.org"
